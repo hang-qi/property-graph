@@ -5,11 +5,14 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <ostream>
 
 class PropertyValue
 {
 public:
     virtual ~PropertyValue() {}
+
+    virtual void Print(std::ostream& os) const = 0;
 };
 
 
@@ -30,15 +33,15 @@ public:
     }
     virtual ~TypedPropertyValue() {}
 
-    virtual void Print()
-    {
-        std::cout << data_ << std::endl;
-    }
-
     virtual void operator >> (T& var) const
     {
         var = data_;
     }
+
+    virtual void Print(std::ostream& os) const
+    {
+        os << data_;
+    };
 
     T get() const {return data_;}
 private:
@@ -54,7 +57,7 @@ private:
 //      dict["name"] = make_value<std::string>("Hello");
 //      dict["height"] = make_value<int>(1);
 template <class T>
-std::shared_ptr<PropertyValue> make_value(T value)
+std::shared_ptr<PropertyValue> make_value(const T& value)
 {
     return std::make_shared<TypedPropertyValue<T>>(value);
 }
@@ -80,6 +83,15 @@ void operator >> (std::shared_ptr<PropertyValue> ptr, T& var)
 {
     auto value = std::static_pointer_cast<TypedPropertyValue<T>>(ptr);
     var = value->get();
+}
+
+
+// Output Property
+std::ostream& operator<< (std::ostream& os,
+                          const std::shared_ptr<PropertyValue>& property)
+{
+    property->Print(os);
+    return os;
 }
 
 #endif
