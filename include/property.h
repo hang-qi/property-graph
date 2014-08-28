@@ -43,7 +43,7 @@ public:
         os << data_;
     };
 
-    T get() const {return data_;}
+    T GetValue() const {return data_;}
 private:
     T data_;
 };
@@ -71,7 +71,7 @@ template <class T>
 T get_value(std::shared_ptr<PropertyValue> ptr)
 {
     auto value = std::static_pointer_cast<TypedPropertyValue<T>>(ptr);
-    return value->get();
+    return value->GetValue();
 }
 
 // Get the value by key and store into a variable.
@@ -82,7 +82,7 @@ template <class T>
 void operator >> (std::shared_ptr<PropertyValue> ptr, T& var)
 {
     auto value = std::static_pointer_cast<TypedPropertyValue<T>>(ptr);
-    var = value->get();
+    var = value->GetValue();
 }
 
 

@@ -3,6 +3,8 @@
 
 #include <ostream>
 #include <sstream>
+#include <algorithm>
+// #include <stdexp>
 
 #include "property.h"
 
@@ -15,18 +17,25 @@ public:
 
     virtual void Print(std::ostream& os) const = 0;
 
-    // void AddProperty(const std::string& key, const T& value){};
-    // void GetProperty(){};
+    std::shared_ptr<PropertyValue>& operator[] (const std::string& key)
+    {
+        return dict_[key];
+    }
+
+    bool hasProperty(const std::string& key)
+    {
+        return dict_.find(key) != dict_.end();
+    }
 
 protected:
     virtual void PrintProperty(std::ostream& os) const
     {
         if (!dict_.size() == 0)
         {
-            os << "\n  Properties: " << "(" << dict_.size() << ")";
-            for (auto it = dict_.begin(); it != dict_.end(); it++)
+            os << "\n  Properties: " << dict_.size() << " items";
+            for (const auto& pair : dict_)
             {
-                os << "\n    " << it->first << ": \t" << it->second << std::endl;
+                os << "\n    " << pair.first << ": \t" << pair.second;
             }
         }
     }
