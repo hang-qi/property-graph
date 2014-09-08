@@ -1,5 +1,5 @@
 #include <iostream>
-#include "property.h"
+#include "graph/property.h"
 
 
 int main(int argc, char const *argv[])

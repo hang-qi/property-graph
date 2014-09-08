@@ -1,5 +1,5 @@
 #include <iostream>
-#include "graph.h"
+#include "graph/graph.h"
 
 int main()
 {
