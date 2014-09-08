@@ -12,7 +12,7 @@ class PropertyValue
 public:
     virtual ~PropertyValue() {}
 
-    virtual void Print(std::ostream& os) const = 0;
+    virtual void print(std::ostream& os) const = 0;
 };
 
 
@@ -38,12 +38,12 @@ public:
         var = data_;
     }
 
-    virtual void Print(std::ostream& os) const
+    virtual void print(std::ostream& os) const
     {
         os << data_;
     };
 
-    T GetValue() const {return data_;}
+    T get_value() const {return data_;}
 private:
     T data_;
 };
@@ -71,7 +71,7 @@ template <class T>
 T get_value(std::shared_ptr<PropertyValue> ptr)
 {
     auto value = std::static_pointer_cast<TypedPropertyValue<T>>(ptr);
-    return value->GetValue();
+    return value->get_value();
 }
 
 // Get the value by key and store into a variable.
@@ -82,7 +82,7 @@ template <class T>
 void operator >> (std::shared_ptr<PropertyValue> ptr, T& var)
 {
     auto value = std::static_pointer_cast<TypedPropertyValue<T>>(ptr);
-    var = value->GetValue();
+    var = value->get_value();
 }
 
 
@@ -90,7 +90,7 @@ void operator >> (std::shared_ptr<PropertyValue> ptr, T& var)
 std::ostream& operator<< (std::ostream& os,
                           const std::shared_ptr<PropertyValue>& property)
 {
-    property->Print(os);
+    property->print(os);
     return os;
 }
 

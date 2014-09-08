@@ -12,6 +12,7 @@
 
 #include "property.h"
 
+/// The data type of vertex id.
 typedef unsigned int VertexIdType;
 
 class GraphElement
@@ -74,7 +75,10 @@ std::ostream& operator<< (std::ostream& os, const GraphElement& element)
     return os;
 }
 
-
+/// The class for a vertex.
+/**
+In a graph, each vertex shall have a unique id.
+*/
 class Vertex : public GraphElement
 {
 public:
@@ -96,6 +100,10 @@ protected:
     VertexIdType id_;
 };
 
+/// The class for an edge.
+/**
+In a graph, each edge must specify the vertex id of the source and target.
+*/
 class Edge : public GraphElement
 {
 public:
@@ -140,6 +148,19 @@ public:
     std::list<std::shared_ptr<Edge>> in_edges;
 };
 
+/// The class for a graph.
+/**
+We assume the library is to be used to construct sparse graphs.
+In particular, the number of vertices can be large, but the degree of each
+vertex is reasonably small
+(in general cases, in-degree is 1, out-degree is around 10).
+
+The graph is implemented using adjacency list.
+This motivates us to implement our adjacency list using an
+``std::unordered_map`` for vertex list
+ and two ``std::list`` for edge lists, for in-edges and out-edges respectively.
+ The purpose of two edges lists for each vertex is to find out parents fast.
+*/
 class Graph : public GraphElement
 {
 public:
@@ -155,6 +176,9 @@ public:
         GraphElement::print_property(os);
     }
 
+    //@{
+    /***/
+    /// Add a vertex into the graph.
     void add_vertex(const Vertex& v)
     {
         if (vertices_.find(v.id()) != vertices_.end())
@@ -163,6 +187,7 @@ public:
         }
         vertices_[v.id()] = Adjacency(v);
     }
+    /// Add a list of vertices into the graph.
     void add_vertex(const std::vector<Vertex>& vertices)
     {
         for (const Vertex& v : vertices)
@@ -170,7 +195,9 @@ public:
             add_vertex(v);
         }
     }
+    //@}
 
+    //@{
     void add_edge(const Edge& e)
     {
         check_vertex_exist(e.source());
@@ -187,7 +214,9 @@ public:
             add_edge(e);
         }
     }
+    //@}
 
+    //@{
     std::vector<std::shared_ptr<Edge>> get_in_edges(const VertexIdType& vid)
     {
         check_vertex_exist(vid);
@@ -209,7 +238,9 @@ public:
         }
         return out_edges;
     }
+    //@}
 
+    //@{
     int get_in_degree(const VertexIdType& vid) const
     {
         check_vertex_exist(vid);
@@ -221,6 +252,7 @@ public:
         check_vertex_exist(vid);
         return const_cast<Graph*>(this)->vertices_[vid].out_edges.size();
     }
+    //@}
 
     // void WriteGraphViz(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler)
     // {}
@@ -238,8 +270,15 @@ protected:
     }
 
 protected:
+    /// The adjacency list of the graph.
+    /**
+    The vertex list is implemented using a ``std::unordered_map`` to support
+    constant time look up for vertices.
+    */
     std::unordered_map<VertexIdType, Adjacency> vertices_;
-    int num_edges_;
+
+    /// A counter for number of edges in the graph.
+    unsigned int num_edges_;
 };
 
 #endif
