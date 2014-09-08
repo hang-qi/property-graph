@@ -5,6 +5,10 @@
 #include <sstream>
 #include <algorithm>
 #include <functional>
+#include <stdexcept>
+#include <memory>
+#include <unordered_map>
+#include <list>
 
 #include "property.h"
 
@@ -16,25 +20,39 @@ public:
     GraphElement() {}
     virtual ~GraphElement() {}
 
-    virtual void PrintSummary(std::ostream& os) const = 0;
+    virtual void print_summary(std::ostream& os) const = 0;
 
     std::shared_ptr<PropertyValue>& operator[] (const std::string& key)
     {
         return dict_[key];
     }
 
-    // std::shared_ptr<PropertyValue> operator[] (const std::string& key) const
+    // std::shared_ptr<const PropertyValue> operator[] (const std::string& key) const
     // {
-    //     return dict_[key];
+    //     std::cout << "ACCESS\n";
+    //     if (dict_.find(key) != dict_.end())
+    //     {
+    //         // We need to cast 'this' pointer to non-const version.
+    //         // Because unordered_map::operator[] does not suppose const
+    //         // since it will add an item if the key does not exist.
+    //         // But since we are explicitly check the existence,
+    //         // we are safe to perform a const cast.
+    //         return const_cast<GraphElement*>(this)->dict_[key];
+    //     }
+    //     else
+    //     {
+    //         std::cout << "NON\n";
+    //         throw std::runtime_error("Cannot find key.");
+    //     }
     // }
 
-    bool hasProperty(const std::string& key)
+    bool has_property(const std::string& key)
     {
         return dict_.find(key) != dict_.end();
     }
 
 protected:
-    virtual void PrintProperty(std::ostream& os) const
+    virtual void print_property(std::ostream& os) const
     {
         if (!dict_.size() == 0)
         {
@@ -52,7 +70,7 @@ protected:
 
 std::ostream& operator<< (std::ostream& os, const GraphElement& element)
 {
-    element.PrintSummary(os);
+    element.print_summary(os);
     return os;
 }
 
@@ -60,15 +78,18 @@ std::ostream& operator<< (std::ostream& os, const GraphElement& element)
 class Vertex : public GraphElement
 {
 public:
-    Vertex(const VertexIdType& id)
-        : id_(id) {}
+    Vertex(const VertexIdType& id) : id_(id) {}
+    Vertex(const Vertex& other) : id_(other.id_) {}
+
     virtual ~Vertex() {}
 
 public:
-    virtual void PrintSummary(std::ostream& os) const
+    const VertexIdType& id() const {return id_;}
+
+    virtual void print_summary(std::ostream& os) const
     {
         os << "Vertex: " << id_;
-        GraphElement::PrintProperty(os);
+        GraphElement::print_property(os);
     }
 
 protected:
@@ -78,25 +99,26 @@ protected:
 class Edge : public GraphElement
 {
 public:
-    Edge(const VertexIdType& end_1,
-         const VertexIdType& end_2)
-    {
-        end_1_ = end_1;
-        end_2_ = end_2;
-    }
+    Edge(const VertexIdType& source, const VertexIdType& target)
+         : source_(source), target_(target) {}
+
+    Edge(const Edge& other) : source_(other.source_), target_(other.target_) {}
 
     virtual ~Edge() {}
 
 public:
-    virtual void PrintSummary(std::ostream& os) const
+    virtual void print_summary(std::ostream& os) const
     {
-        os << "Edge: " << end_1_ << " -> " << end_2_;
-        GraphElement::PrintProperty(os);
+        os << "Edge: " << source_ << " -> " << target_;
+        GraphElement::print_property(os);
     }
 
+    const VertexIdType& source() const {return source_;}
+    const VertexIdType& target() const {return target_;}
+
 protected:
-    VertexIdType end_1_;
-    VertexIdType end_2_;
+    VertexIdType source_;
+    VertexIdType target_;
 };
 
 // A labeler is a label creator which takes a GraphElement object
@@ -104,47 +126,121 @@ protected:
 // for debug and visualization purposes.
 typedef std::function<std::string(GraphElement&)> Labeler;
 
+class Adjacency
+{
+public:
+    Adjacency() {}
+    Adjacency(const Vertex& v)
+    {
+        vertex = std::make_shared<Vertex>(v);
+    }
+
+    std::shared_ptr<Vertex> vertex;
+    std::list<std::shared_ptr<Edge>> out_edges;
+    std::list<std::shared_ptr<Edge>> in_edges;
+};
+
 class Graph : public GraphElement
 {
 public:
-    Graph() {}
+    Graph() : num_edges_(0) {}
     virtual ~Graph() {};
 
 public:
-    virtual void PrintSummary(std::ostream& os) const
+    virtual void print_summary(std::ostream& os) const
     {
         os << "Graph: " << std::endl;
-        os << "  # edges:    " << std::endl;
-        os << "  # vertexes: ";
-        GraphElement::PrintProperty(os);
+        os << "  # edges:    " << num_edges_ << std::endl;
+        os << "  # vertices: " << vertices_.size();
+        GraphElement::print_property(os);
     }
 
-    void AddVertex(const Vertex& vertex) {}
-    void AddVertices(const std::vector<Vertex>& vertex) {}
+    void add_vertex(const Vertex& v)
+    {
+        if (vertices_.find(v.id()) != vertices_.end())
+        {
+            throw std::runtime_error("The vertex already exists.");
+        }
+        vertices_[v.id()] = Adjacency(v);
+    }
+    void add_vertex(const std::vector<Vertex>& vertices)
+    {
+        for (const Vertex& v : vertices)
+        {
+            add_vertex(v);
+        }
+    }
 
-    void AddEdge(const Edge& edge) {}
-    void AddEdges(const std::vector<Edge>& edge) {}
+    void add_edge(const Edge& e)
+    {
+        check_vertex_exist(e.source());
+        check_vertex_exist(e.target());
+        std::shared_ptr<Edge> edge = std::make_shared<Edge>(e);
+        vertices_[edge->target()].in_edges.push_back(edge);
+        vertices_[edge->source()].out_edges.push_back(edge);
+        ++num_edges_;
+    }
+    void add_edge(const std::vector<Edge>& edges)
+    {
+        for (const Edge& e : edges)
+        {
+            add_edge(e);
+        }
+    }
 
-    std::vector<std::shared_ptr<Edge>> GetEdges(const VertexIdType& source,
-        const VertexIdType& dest){}
-    std::vector<std::shared_ptr<Edge>> GetInEdges(const VertexIdType& source){}
-    std::vector<std::shared_ptr<Edge>> GetOutEdges(const VertexIdType& dest){}
+    std::vector<std::shared_ptr<Edge>> get_in_edges(const VertexIdType& vid)
+    {
+        check_vertex_exist(vid);
+        std::vector<std::shared_ptr<Edge>> in_edges;
+        for (const std::shared_ptr<Edge>& e : vertices_[vid].in_edges)
+        {
+            in_edges.push_back(e);
+        }
+        return in_edges;
+    }
 
-    int GetInDegree(const VertexIdType& source) {}
-    int GetOutDegree(const VertexIdType& dest) {}
+    std::vector<std::shared_ptr<Edge>> get_out_edges(const VertexIdType& vid)
+    {
+        check_vertex_exist(vid);
+        std::vector<std::shared_ptr<Edge>> out_edges;
+        for (const std::shared_ptr<Edge>& e : vertices_[vid].out_edges)
+        {
+            out_edges.push_back(e);
+        }
+        return out_edges;
+    }
 
-    Graph GetNeighbors(const VertexIdType& vid, int levels) {}
+    int get_in_degree(const VertexIdType& vid) const
+    {
+        check_vertex_exist(vid);
+        return const_cast<Graph*>(this)->vertices_[vid].in_edges.size();
+    }
 
-    void WriteGraphViz(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler)
-    {}
+    int get_out_degree(const VertexIdType& vid) const
+    {
+        check_vertex_exist(vid);
+        return const_cast<Graph*>(this)->vertices_[vid].out_edges.size();
+    }
 
-    void LoadRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
-    void WriteRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
+    // void WriteGraphViz(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler)
+    // {}
+
+    // void LoadRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
+    // void WriteRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
 
 protected:
-    // vertex set
-    // edge set
-    // several indices and maps
+    void check_vertex_exist(const VertexIdType& vid) const
+    {
+        if (vertices_.find(vid) == vertices_.end())
+        {
+            throw std::runtime_error("The vertex does not exist.");
+        }
+    }
+
+protected:
+    std::unordered_map<VertexIdType, Adjacency> vertices_;
+    int num_edges_;
 };
 
 #endif
+
