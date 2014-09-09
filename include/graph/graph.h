@@ -129,10 +129,15 @@ protected:
     VertexIdType target_;
 };
 
-// A labeler is a label creator which takes a GraphElement object
-// and produces the label that can is readable to human especially
-// for debug and visualization purposes.
-typedef std::function<std::string(GraphElement&)> Labeler;
+//@{
+/**
+A labeler is a label creator which takes a GraphElement object
+and produces the label that can is readable to human especially
+for debug and visualization purposes.
+*/
+typedef std::function<std::string(const std::shared_ptr<Vertex>&)> VertexLabeler;
+typedef std::function<std::string(const std::shared_ptr<Edge>&)> EdgeLabeler;
+//@}
 
 class Adjacency
 {
@@ -254,8 +259,32 @@ public:
     }
     //@}
 
-    // void WriteGraphViz(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler)
-    // {}
+    /// Output graph structure to GraphViz dot format.
+    void write_graphviz(std::ostream& os, VertexLabeler fVertexLabeler=nullptr,
+        EdgeLabeler fEdgeLabeler=nullptr)
+    {
+        os << "digraph g {\n";
+        for (auto p : vertices_)
+        {
+            if (fVertexLabeler != nullptr)
+            {
+                os << p.first << "[label=\"" << fVertexLabeler(p.second.vertex) << "\"];\n";
+            }
+            if (p.second.out_edges.size() > 0)
+            {
+                for (auto e : p.second.out_edges)
+                {
+                    os << p.first << " -> " << e->target();
+                    if (fEdgeLabeler != nullptr)
+                    {
+                        os << " [ label= \"" << fEdgeLabeler(e) << "\"]";
+                    }
+                    os << ";\n";
+                }
+            }
+        }
+        os << "}\n";
+    }
 
     // void LoadRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
     // void WriteRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}

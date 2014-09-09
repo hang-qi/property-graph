@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "graph/graph.h"
 
 int main()
@@ -31,6 +32,20 @@ int main()
     std::cout << "Out degree of v1: " << g.get_out_degree(1) << std::endl;
     std::cout << "In  degree of v2: " << g.get_in_degree(2) << std::endl;
     std::cout << "Out degree of v2: " << g.get_out_degree(2) << std::endl;
+
+    std::ofstream fout("graphviz_test.dot");
+    g.write_graphviz(fout, [](const std::shared_ptr<Vertex>& v) -> std::string {
+        std::stringstream ss;
+        ss << "V:" << v->id();
+        return ss.str();
+    },
+    [](const std::shared_ptr<Edge>& e) -> std::string {
+        std::stringstream ss;
+        ss << "EDGE:" << e->source() << " - " << e->target();
+        return ss.str();
+    });
+    //g.write_graphviz(fout);
+    fout.close();
 
     return 0;
 }
