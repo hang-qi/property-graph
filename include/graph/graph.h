@@ -221,6 +221,11 @@ public:
     }
     //@}
 
+    std::shared_ptr<Vertex> get_vertex(const VertexIdType& vid)
+    {
+        return vertices_[vid].vertex;
+    }
+
     //@{
     std::vector<std::shared_ptr<Edge>> get_in_edges(const VertexIdType& vid)
     {
