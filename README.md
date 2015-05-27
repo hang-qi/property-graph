@@ -1,3 +1,3 @@
-Joint STC
-=========
+A Lightweight Property Graph Model
+==================================
 
