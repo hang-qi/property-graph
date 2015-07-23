@@ -28,6 +28,11 @@ public:
         return dict_[key];
     }
 
+    const std::shared_ptr<PropertyValue>& operator[](std::string key) const
+    {
+        return const_cast<GraphElement&>(*this)[key];
+    }
+
     // std::shared_ptr<const PropertyValue> operator[] (const std::string& key) const
     // {
     //     std::cout << "ACCESS\n";
@@ -50,6 +55,15 @@ public:
     bool has_property(const std::string& key)
     {
         return dict_.find(key) != dict_.end();
+    }
+
+    std::vector<std::string> get_properties() const
+    {
+        std::vector<std::string> props;
+        for(auto p : dict_) {
+            props.push_back(p.first);
+        }
+        return props;
     }
 
 protected:
@@ -83,7 +97,12 @@ class Vertex : public GraphElement
 {
 public:
     Vertex(const VertexIdType& id) : id_(id) {}
-    Vertex(const Vertex& other) : id_(other.id_) {}
+    Vertex(const Vertex& other) : id_(other.id_)
+    {
+        for (auto& p : other.get_properties()) {
+            dict_[p] = other[p];
+        }
+    }
 
     virtual ~Vertex() {}
 
@@ -110,7 +129,13 @@ public:
     Edge(const VertexIdType& source, const VertexIdType& target)
          : source_(source), target_(target) {}
 
-    Edge(const Edge& other) : source_(other.source_), target_(other.target_) {}
+    Edge(const Edge& other) : source_(other.source_), target_(other.target_)
+    {
+        for (auto& p : other.get_properties())
+        {
+            dict_[p] = other[p];
+        }
+    }
 
     virtual ~Edge() {}
 
