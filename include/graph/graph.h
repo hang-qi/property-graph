@@ -9,6 +9,7 @@
 #include <memory>
 #include <unordered_map>
 #include <list>
+#include <set>
 
 #include "property.h"
 
@@ -26,6 +27,11 @@ public:
     std::shared_ptr<PropertyValue>& operator[] (const std::string& key)
     {
         return dict_[key];
+    }
+
+    const std::shared_ptr<PropertyValue>& operator[](std::string key) const
+    {
+        return const_cast<GraphElement&>(*this)[key];
     }
 
     // std::shared_ptr<const PropertyValue> operator[] (const std::string& key) const
@@ -50,6 +56,15 @@ public:
     bool has_property(const std::string& key)
     {
         return dict_.find(key) != dict_.end();
+    }
+
+    std::vector<std::string> get_properties() const
+    {
+        std::vector<std::string> props;
+        for(auto p : dict_) {
+            props.push_back(p.first);
+        }
+        return props;
     }
 
 protected:
@@ -83,7 +98,12 @@ class Vertex : public GraphElement
 {
 public:
     Vertex(const VertexIdType& id) : id_(id) {}
-    Vertex(const Vertex& other) : id_(other.id_) {}
+    Vertex(const Vertex& other) : id_(other.id_)
+    {
+        for (auto& p : other.get_properties()) {
+            dict_[p] = other[p];
+        }
+    }
 
     virtual ~Vertex() {}
 
@@ -110,7 +130,13 @@ public:
     Edge(const VertexIdType& source, const VertexIdType& target)
          : source_(source), target_(target) {}
 
-    Edge(const Edge& other) : source_(other.source_), target_(other.target_) {}
+    Edge(const Edge& other) : source_(other.source_), target_(other.target_)
+    {
+        for (auto& p : other.get_properties())
+        {
+            dict_[p] = other[p];
+        }
+    }
 
     virtual ~Edge() {}
 
@@ -264,6 +290,24 @@ public:
     }
     //@}
 
+    int get_num_vertices()
+    {
+        return vertices_.size();
+    }
+
+    int get_unused_id()
+    {
+        VertexIdType maxVal = 0;
+        for (auto p : vertices_)
+        {
+            if (p.first > maxVal)
+            {
+                maxVal = p.first;
+            }
+        }
+        return maxVal + 1;
+    }
+
     /// Output graph structure to GraphViz dot format.
     void write_graphviz(std::ostream& os, VertexLabeler fVertexLabeler=nullptr,
         EdgeLabeler fEdgeLabeler=nullptr)
@@ -289,6 +333,75 @@ public:
             }
         }
         os << "}\n";
+    }
+
+    std::string get_gml()
+    {
+        std::stringstream result;
+        result << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        result << "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\" ";
+        result << "xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" ";
+        result << "xsi:schemaLocation=\"http://graphml.graphdrawing.org/xmlns ";
+        result << "http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd\">\n";
+
+        // Loop through all verticies, and find all properties used
+        std::set<std::string> vPropNames;
+        std::set<std::string> ePropNames;
+        for (auto p : vertices_) {
+            Vertex v = *(p.second.vertex);
+            for (auto propName : v.get_properties()) {
+                vPropNames.insert(propName);
+            }
+            for (auto edge : get_out_edges(v.id())) {
+                for (auto propName : edge -> get_properties()) {
+                    ePropNames.insert(propName);
+                }
+            }
+        }
+        for (auto propName : vPropNames) {
+            result << "<key id=\"" + propName + "V\" for=\"node\" attr.name=\"" + propName + "\" attr.type=\"string\"/>\n";
+        }
+
+        for (auto propName : ePropNames) {
+            result << "<key id=\"" + propName + "E\" for=\"edge\" attr.name=\"" + propName + "\" attr.type=\"string\"/>\n";
+        }
+
+        result << "<graph id=\"G\" edgedefault=\"directed\">\n";
+
+        for (auto p : vertices_) {
+            Vertex v = *(p.second.vertex);
+            result << "  <node id=\"" + std::to_string(v.id()) + "\">\n";
+            for (auto propName : v.get_properties()) {
+                std::string propValue = get_value<std::string>(v[propName]);
+                result << "    <data key=\"" + propName + "V\">";
+                result << propValue;
+                result << "</data>\n";
+            }
+            result << "  </node>\n";
+        }
+
+        for (auto p : vertices_) {
+            Vertex v = *(p.second.vertex);
+            if (p.second.out_edges.size() > 0) {
+                for (auto e : p.second.out_edges) {
+                    result << "  <edge source=\"" + std::to_string(p.first) +
+                              "\" target=\"" + std::to_string(e->target()) + "\">\n";
+
+                    for (auto propName : e -> get_properties()) {
+                        std::string propValue = get_value<std::string>((*e)[propName]);
+                        result << "    <data key=\"" + propName + "E\">";
+                        result << propValue;
+                        result << "</data>\n";
+                    }
+
+                    result << "  </edge>\n";
+                }
+            }
+        }
+
+        result << "</graph>\n";
+        result << "</graphml>\n";
+        return result.str();
     }
 
     // void LoadRDF(std::ostream& os, Labeler VertexLabeler, Labeler EdgeLabeler) {}
